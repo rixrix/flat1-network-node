@@ -1,4 +1,7 @@
-# Flat1 Network Node
+<p align="center">
+    <img src="./assets/logo.jpeg" height="100">
+    <h3 align="center">Flat1 Network Node</h3>
+</p>
 
 This forked repository is based on [substrate-node-template](https://github.com/substrate-developer-hub/substrate-node-template)
 
