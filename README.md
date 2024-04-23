@@ -1,6 +1,6 @@
-# Substrate Node Template
+# Flat1 Network Node
 
-A fresh [Substrate](https://substrate.io/) node, ready for hacking :rocket:
+This forked repository is based on [substrate-node-template](https://github.com/substrate-developer-hub/substrate-node-template)
 
 A standalone version of this template is available for each release of Polkadot
 in the [Substrate Developer Hub Parachain
@@ -37,7 +37,7 @@ After you build the project, you can use the following command to explore its
 parameters and subcommands:
 
 ```sh
-./target/release/node-template -h
+./target/release/flat1-network -h
 ```
 
 You can generate and view the [Rust
@@ -54,19 +54,19 @@ The following command starts a single-node development chain that doesn't
 persist state:
 
 ```sh
-./target/release/node-template --dev
+./target/release/flat1-network --dev
 ```
 
 To purge the development chain's state, run the following command:
 
 ```sh
-./target/release/node-template purge-chain --dev
+./target/release/flat1-network purge-chain --dev
 ```
 
 To start the development chain with detailed logging, run the following command:
 
 ```sh
-RUST_BACKTRACE=1 ./target/release/node-template -ldebug --dev
+RUST_BACKTRACE=1 ./target/release/flat1-network -ldebug --dev
 ```
 
 Development chains:
@@ -85,7 +85,7 @@ similar to the following:
 $ mkdir my-chain-state
 
 // Use of that folder to store the chain state
-$ ./target/release/node-template --dev --base-path ./my-chain-state/
+$ ./target/release/flat1-network --dev --base-path ./my-chain-state/
 
 // Check the folder structure created inside the base path after running the chain
 $ ls ./my-chain-state
