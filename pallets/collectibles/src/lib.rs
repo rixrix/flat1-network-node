@@ -73,6 +73,12 @@ pub mod pallet {
 		MaximumCollectiblesOwned,
 		/// The total supply of collectibles can't exceed the `u64` limit
 		BoundsOverflow,
+		/// The collectible doesn't exist
+		NoCollectible,
+		/// You are not the owner
+		NotOwner,
+		/// Trying to transfer a collectible to yourself
+		TransferToSelf,
 	}
 
 	#[pallet::event]
@@ -80,6 +86,10 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A new collectible was successfully created
 		CollectibleCreated { collectible: [u8; 16], owner: T::AccountId },
+		/// A collectible was successfully transferred.
+		TransferSucceeded { from: T::AccountId, to: T::AccountId, collectible: [u8; 16] },
+		/// The price of a collectible was successfully set.
+		PriceSet { collectible: [u8; 16], price: Option<BalanceOf<T>> },
 	}
 
 	/// Pallet internal function
@@ -146,6 +156,41 @@ pub mod pallet {
 			// Return the unique_id of the new collectible if this succeeds
 			Ok(unique_id)
 		}
+
+		// Update storage to transfer collectible
+		pub fn do_transfer(collectible_id: [u8; 16], to: T::AccountId) -> DispatchResult {
+			// Get the collectible
+			let mut collectible =
+				CollectibleMap::<T>::get(&collectible_id).ok_or(Error::<T>::NoCollectible)?;
+			let from = collectible.owner;
+
+			ensure!(from != to, Error::<T>::TransferToSelf);
+			let mut from_owned = OwnerOfCollectibles::<T>::get(&from);
+
+			// Remove collectible from list of owned collectible.
+			if let Some(ind) = from_owned.iter().position(|&id| id == collectible_id) {
+				from_owned.swap_remove(ind);
+			} else {
+				return Err(Error::<T>::NoCollectible.into());
+			}
+			// Add collectible to the list of owned collectibles.
+			let mut to_owned = OwnerOfCollectibles::<T>::get(&to);
+			to_owned
+				.try_push(collectible_id)
+				.map_err(|_id| Error::<T>::MaximumCollectiblesOwned)?;
+
+			// Transfer succeeded, update the owner and reset the price to `None`.
+			collectible.owner = to.clone();
+			collectible.price = None;
+
+			// Write updates to storage
+			CollectibleMap::<T>::insert(&collectible_id, collectible);
+			OwnerOfCollectibles::<T>::insert(&to, to_owned);
+			OwnerOfCollectibles::<T>::insert(&from, from_owned);
+
+			Self::deposit_event(Event::TransferSucceeded { from, to, collectible: collectible_id });
+			Ok(())
+		}
 	}
 
 	// Pallet callable functions
@@ -167,5 +212,46 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Transfer a collectible to another account.
+		/// Any account that holds a collectible can send it to another account.
+		/// Transfer resets the price of the collectible, marking it not for sale.
+		#[pallet::weight(0)]
+		pub fn transfer(
+			origin: OriginFor<T>,
+			to: T::AccountId,
+			unique_id: [u8; 16],
+		) -> DispatchResult {
+			// Make sure the caller is from a signed origin
+			let from = ensure_signed(origin)?;
+			let collectible =
+				CollectibleMap::<T>::get(&unique_id).ok_or(Error::<T>::NoCollectible)?;
+			ensure!(collectible.owner == from, Error::<T>::NotOwner);
+			Self::do_transfer(unique_id, to)?;
+			Ok(())
+		}
+
+		/// Update the collectible price and write to storage.
+		#[pallet::weight(0)]
+		pub fn set_price(
+			origin: OriginFor<T>,
+			unique_id: [u8; 16],
+			new_price: Option<BalanceOf<T>>,
+		) -> DispatchResult {
+			// Make sure the caller is from a signed origin
+			let sender = ensure_signed(origin)?;
+			// Ensure the collectible exists and is called by the owner
+			let mut collectible = CollectibleMap::<T>::get(&unique_id).ok_or(Error::<T>::NoCollectible)?;
+			ensure!(collectible.owner == sender, Error::<T>::NotOwner);
+			// Set the price in storage
+			collectible.price = new_price;
+			CollectibleMap::<T>::insert(&unique_id, collectible);
+
+			// Deposit a "PriceSet" event.
+			Self::deposit_event(Event::PriceSet { collectible: unique_id, price: new_price });
+			Ok(())
+		}
 	}
+
+	// @TODO https://docs.substrate.io/tutorials/collectibles-workshop/07-more-functions/
 }
